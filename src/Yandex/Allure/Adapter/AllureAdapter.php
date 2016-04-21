@@ -258,8 +258,14 @@ class AllureAdapter extends Extension
 
     public function stepBefore(StepEvent $stepEvent)
     {
-        $stepAction = $stepEvent->getStep()->getAction();
-        $this->getLifecycle()->fire(new StepStartedEvent($stepAction));
+        $stepAction = $stepEvent->getStep()->getHumanizedActionWithoutArguments();
+        $stepArgs = $stepEvent->getStep()->getHumanizedArguments();
+        $stepName = $stepAction . ' ' . $stepArgs;
+
+        //Workaround for https://github.com/allure-framework/allure-core/issues/442
+        $stepName = str_replace('.', '(dot)', $stepName);
+        
+        $this->getLifecycle()->fire(new StepStartedEvent($stepName));
     }
 
     public function stepAfter()
