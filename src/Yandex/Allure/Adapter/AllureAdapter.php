@@ -9,11 +9,10 @@ use Codeception\Event\TestEvent;
 use Codeception\Event\FailEvent;
 use Codeception\Events;
 use Codeception\Platform\Extension;
-use Codeception\Exception\Configuration as ConfigurationException;
+use Codeception\Exception\ConfigurationException;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Filesystem\Filesystem;
 use Yandex\Allure\Adapter\Annotation;
-use Yandex\Allure\Adapter\Event\StepFailedEvent;
 use Yandex\Allure\Adapter\Event\StepFinishedEvent;
 use Yandex\Allure\Adapter\Event\StepStartedEvent;
 use Yandex\Allure\Adapter\Event\TestCaseBrokenEvent;
@@ -203,6 +202,7 @@ class AllureAdapter extends Extension
         if (method_exists($className, $testName)){
             $annotationManager = new Annotation\AnnotationManager(Annotation\AnnotationProvider::getMethodAnnotations($className, $testName));
             $annotationManager->updateTestCaseEvent($event);
+            $this->concatenateIssueAndTitle($testName, $className, $event);
         }
         $this->getLifecycle()->fire($event);
     }
@@ -288,6 +288,32 @@ class AllureAdapter extends Extension
     public function setLifecycle(Allure $lifecycle)
     {
         $this->lifecycle = $lifecycle;
+    }
+
+    /**
+     * @param $testName
+     * @param $className
+     * @param TestCaseStartedEvent $event
+     */
+    private function concatenateIssueAndTitle($testName, $className, TestCaseStartedEvent $event)
+    {
+        $annotations = Annotation\AnnotationProvider::getMethodAnnotations($className, $testName);
+        $issues = null;
+        $title = null;
+        foreach ($annotations as $annotation) {
+            if ($annotation instanceof Annotation\Title) {
+                $title = $annotation->value;
+            }
+            if ($annotation instanceof Annotation\Issues) {
+                $issueKeys = $annotation->getIssueKeys();
+                foreach ($issueKeys as $issue) {
+                    $issues = explode(',', $issue);
+                }
+            }
+        }
+        if ($issues && $title) {
+            $event->setTitle(implode(' ', $issues) . ' ' . $title);
+        }
     }
 
 }
