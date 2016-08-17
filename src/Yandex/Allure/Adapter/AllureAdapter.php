@@ -55,7 +55,6 @@ class AllureAdapter extends Extension
 
     /**
      * Annotations that should be ignored by the annotaions parser (especially PHPUnit annotations).
-     * 
      * @var array
      */
     private $ignoredAnnotations = [
@@ -69,7 +68,6 @@ class AllureAdapter extends Extension
 
     /**
      * Extra annotations to ignore in addition to standard PHPUnit annotations.
-     * 
      * @param array $ignoredAnnotations
      */
     public function _initialize(array $ignoredAnnotations = [])
@@ -102,7 +100,7 @@ class AllureAdapter extends Extension
     {
         if (array_key_exists($optionKey, $this->config)) {
             return $this->config[$optionKey];
-        } 
+        }
         return $defaultValue;
     }
 
@@ -172,7 +170,7 @@ class AllureAdapter extends Extension
             $filesystem->remove($files);
         }
     }
-    
+
     public function suiteBefore(SuiteEvent $suiteEvent)
     {
         $suite = $suiteEvent->getSuite();
@@ -264,7 +262,6 @@ class AllureAdapter extends Extension
 
         //Workaround for https://github.com/allure-framework/allure-core/issues/442
         $stepName = str_replace('.', '(dot)', $stepName);
-        
         $this->getLifecycle()->fire(new StepStartedEvent($stepName));
     }
 
@@ -307,7 +304,7 @@ class AllureAdapter extends Extension
             if ($annotation instanceof Annotation\Issues) {
                 $issueKeys = $annotation->getIssueKeys();
                 foreach ($issueKeys as $issue) {
-                    $issues = explode(',', $issue);
+                    $issues[] = $issue;
                 }
             }
         }
@@ -315,5 +312,4 @@ class AllureAdapter extends Extension
             $event->setTitle(implode(' ', $issues) . ' ' . $title);
         }
     }
-
 }
