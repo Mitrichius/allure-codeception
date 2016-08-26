@@ -195,12 +195,19 @@ class AllureAdapter extends Extension
     {
         $test = $testEvent->getTest();
         $testName = $test->getName();
+        $datasetPosition = strpos($testName, 'with data set #');
+        if ($datasetPosition !== false) {
+            $originalTestName = substr($testName, 0, $datasetPosition - 1);
+        } else {
+            $originalTestName = $testName;
+        }
+
         $className = get_class($test);
         $event = new TestCaseStartedEvent($this->uuid, $testName);
-        if (method_exists($className, $testName)){
-            $annotationManager = new Annotation\AnnotationManager(Annotation\AnnotationProvider::getMethodAnnotations($className, $testName));
+        if (method_exists($className, $originalTestName)){
+            $annotationManager = new Annotation\AnnotationManager(Annotation\AnnotationProvider::getMethodAnnotations($className, $originalTestName));
             $annotationManager->updateTestCaseEvent($event);
-            $this->concatenateIssueAndTitle($testName, $className, $event);
+            $this->concatenateIssueAndTitle($originalTestName, $className, $event);
         }
         $this->getLifecycle()->fire($event);
     }
