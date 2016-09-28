@@ -27,6 +27,8 @@ use Yandex\Allure\Adapter\Model;
 
 const OUTPUT_DIRECTORY_PARAMETER = 'outputDirectory';
 const DELETE_PREVIOUS_RESULTS_PARAMETER = 'deletePreviousResults';
+const ARGUMENTS_LENGTH = 'argumentsLength';
+const ISSUES_IN_TEST_NAME = 'issuesInTestName';
 const DEFAULT_RESULTS_DIRECTORY = 'allure-results';
 const DEFAULT_REPORT_DIRECTORY = 'allure-report';
 
@@ -207,7 +209,9 @@ class AllureAdapter extends Extension
         if (method_exists($className, $originalTestName)){
             $annotationManager = new Annotation\AnnotationManager(Annotation\AnnotationProvider::getMethodAnnotations($className, $originalTestName));
             $annotationManager->updateTestCaseEvent($event);
-            $this->concatenateIssueAndTitle($originalTestName, $className, $event);
+            if ($this->tryGetOption(ISSUES_IN_TEST_NAME, false)) {
+                $this->concatenateIssueAndTitle($originalTestName, $className, $event);
+            }
         }
         $this->getLifecycle()->fire($event);
     }
@@ -264,7 +268,9 @@ class AllureAdapter extends Extension
     public function stepBefore(StepEvent $stepEvent)
     {
         $stepAction = $stepEvent->getStep()->getHumanizedActionWithoutArguments();
-        $stepArgs = $stepEvent->getStep()->getHumanizedArguments(1000);
+        $argumentsLength =
+            $this->tryGetOption(ARGUMENTS_LENGTH, 200);
+        $stepArgs = $stepEvent->getStep()->getHumanizedArguments($argumentsLength);
         $stepName = $stepAction . ' ' . $stepArgs;
 
         //Workaround for https://github.com/allure-framework/allure-core/issues/442
