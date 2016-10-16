@@ -7,8 +7,9 @@ This is fork of official [Codeception](http://codeception.com) adapter for Allur
 2. Added workaround for [dot's problem](https://github.com/allure-framework/allure-core/issues/442) - dots replaced by • now;
 3. Fixed work with tests using dataProviders - test name and all attributes are loaded now correctly;
 4. Added two optional params to config:
-    * `argumentsLength` - set length for humanized arguments of steps. It is set to `200` by default (like in Codeception);
-    * `issuesInTestName` - with enabled option issue label will be concatenated to test name. It is good to check failed tests without assigned issues directly in the list, without opening certain test. It is set to `false` by default.
+    * `arguments_length` - set length for humanized arguments of steps. It is set to `200` by default (like in Codeception);
+    * `issues_in_test_name` - with enabled option issue label will be concatenated to test name. It is good to check failed tests without assigned issues directly in the list, without opening certain test. It is set to `false` by default.
+5. Change naming convention of params in config: from camelCase to snake_case. `outputDirectory` to `output_directory`, `deletePreviousResults` to `delete_previous_results`.
 
 ## What is this for?
 The main purpose of this adapter is to accumulate information about your tests and write it out to a set of XML files: one for each test class. This adapter only generates XML files containing information about tests. See [wiki section](https://github.com/allure-framework/allure-core/wiki#generating-report) on how to generate report.

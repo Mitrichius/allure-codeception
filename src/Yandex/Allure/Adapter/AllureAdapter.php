@@ -25,10 +25,10 @@ use Yandex\Allure\Adapter\Event\TestSuiteFinishedEvent;
 use Yandex\Allure\Adapter\Event\TestSuiteStartedEvent;
 use Yandex\Allure\Adapter\Model;
 
-const OUTPUT_DIRECTORY_PARAMETER = 'outputDirectory';
-const DELETE_PREVIOUS_RESULTS_PARAMETER = 'deletePreviousResults';
-const ARGUMENTS_LENGTH = 'argumentsLength';
-const ISSUES_IN_TEST_NAME = 'issuesInTestName';
+const OUTPUT_DIRECTORY_PARAMETER = 'output_directory';
+const DELETE_PREVIOUS_RESULTS_PARAMETER = 'delete_previous_results';
+const ARGUMENTS_LENGTH = 'arguments_length';
+const ISSUES_IN_TEST_NAME = 'issues_in_test_name';
 const DEFAULT_RESULTS_DIRECTORY = 'allure-results';
 const DEFAULT_REPORT_DIRECTORY = 'allure-report';
 
