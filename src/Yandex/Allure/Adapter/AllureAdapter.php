@@ -197,9 +197,11 @@ class AllureAdapter extends Extension
     {
         $test = $testEvent->getTest();
         $testName = $test->getName();
-        $datasetPosition = strpos($testName, 'with data set #');
+        $dataSetTitle = null;
+        $datasetPosition = strpos($testName, 'with data set');
         if ($datasetPosition !== false) {
             $originalTestName = substr($testName, 0, $datasetPosition - 1);
+            $dataSetTitle = substr($testName, $datasetPosition);
         } else {
             $originalTestName = $testName;
         }
@@ -209,9 +211,7 @@ class AllureAdapter extends Extension
         if (method_exists($className, $originalTestName)){
             $annotationManager = new Annotation\AnnotationManager(Annotation\AnnotationProvider::getMethodAnnotations($className, $originalTestName));
             $annotationManager->updateTestCaseEvent($event);
-            if ($this->tryGetOption(ISSUES_IN_TEST_NAME, false)) {
-                $this->concatenateIssueAndTitle($originalTestName, $className, $event);
-            }
+            $this->updateTitle($originalTestName, $className, $event, $dataSetTitle);
         }
         $this->getLifecycle()->fire($event);
     }
@@ -304,25 +304,42 @@ class AllureAdapter extends Extension
      * @param $testName
      * @param $className
      * @param TestCaseStartedEvent $event
+     * @param $dataSetTitle
      */
-    private function concatenateIssueAndTitle($testName, $className, TestCaseStartedEvent $event)
+    private function updateTitle($testName, $className, TestCaseStartedEvent $event, $dataSetTitle)
     {
         $annotations = Annotation\AnnotationProvider::getMethodAnnotations($className, $testName);
         $issues = null;
         $title = null;
+        $titleUpdated = null;
         foreach ($annotations as $annotation) {
             if ($annotation instanceof Annotation\Title) {
                 $title = $annotation->value;
+                break;
             }
-            if ($annotation instanceof Annotation\Issues) {
-                $issueKeys = $annotation->getIssueKeys();
-                foreach ($issueKeys as $issue) {
-                    $issues[] = $issue;
+
+        }
+        if (!$title) {
+            return;
+        }
+        if ($this->tryGetOption(ISSUES_IN_TEST_NAME, false)) {
+            foreach ($annotations as $annotation) {
+                if ($annotation instanceof Annotation\Issues) {
+                    $issueKeys = $annotation->getIssueKeys();
+                    foreach ($issueKeys as $issue) {
+                        $issues[] = $issue;
+                    }
                 }
             }
         }
-        if ($issues && $title) {
-            $event->setTitle(implode(' ', $issues) . ' ' . $title);
+
+        $titleUpdated = $title;
+        if ($issues) {
+            $titleUpdated = implode(' ', $issues) . ' ' . $titleUpdated;
         }
+        if ($dataSetTitle) {
+            $titleUpdated .= ' ' . $dataSetTitle;
+        }
+        $event->setTitle($titleUpdated);
     }
 }
