@@ -8,6 +8,7 @@ use Codeception\Event\SuiteEvent;
 use Codeception\Event\TestEvent;
 use Codeception\Event\FailEvent;
 use Codeception\Events;
+use Codeception\Lib\Console\DiffFactory;
 use Codeception\Platform\Extension;
 use Codeception\Exception\ConfigurationException;
 use Codeception\Test\Cest;
@@ -243,7 +244,7 @@ class AllureAdapter extends Extension
     {
         $event = new TestCaseFailedEvent();
         $e = $failEvent->getFail();
-        $message = $e->getMessage();
+        $message = $this->getFullFailMessage($e);
         $this->getLifecycle()->fire($event->withException($e)->withMessage($message));
     }
 
@@ -350,5 +351,22 @@ class AllureAdapter extends Extension
             $titleUpdated .= ' ' . $dataSetTitle;
         }
         $event->setTitle($titleUpdated);
+    }
+
+    public function getFullFailMessage(\Exception $e)
+    {
+        $message = $e->getMessage();
+        if ($e instanceof \PHPUnit_Framework_ExpectationFailedException) {
+            $comparisonFailure = $e->getComparisonFailure();
+            if ($comparisonFailure) {
+                $diffFactory = new DiffFactory();
+                $diff = $diffFactory->createDiff($comparisonFailure);
+                if (!$diff) {
+                    return '';
+                }
+                $message .= "\n- Expected | + Actual\n$diff";
+            }
+        }
+        return $message;
     }
 }
