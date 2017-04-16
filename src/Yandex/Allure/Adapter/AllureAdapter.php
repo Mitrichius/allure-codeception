@@ -361,10 +361,9 @@ class AllureAdapter extends Extension
             if ($comparisonFailure) {
                 $diffFactory = new DiffFactory();
                 $diff = $diffFactory->createDiff($comparisonFailure);
-                if (!$diff) {
-                    return '';
+                if ($diff) {
+                    $message .= "\n- Expected | + Actual\n$diff";
                 }
-                $message .= "\n- Expected | + Actual\n$diff";
             }
         }
         return $message;
