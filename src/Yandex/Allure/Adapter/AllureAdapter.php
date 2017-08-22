@@ -198,22 +198,32 @@ class AllureAdapter extends Extension
     public function testStart(TestEvent $testEvent)
     {
         $test = $testEvent->getTest();
-        $testName = $test->getName();
         $dataSetTitle = null;
-        $datasetPosition = strpos($testName, 'with data set');
+
+        if ($test instanceof Cest) {
+            $testName = $test->getFeature();
+            $datasetPosition = strpos($testName, ' | ');
+            $className = $test->getTestClass();
+        } else {
+            $testName = $test->getName();
+            $datasetPosition = strpos($testName, 'with data set');
+            $className = get_class($test);
+        }
+
         if ($datasetPosition !== false) {
-            $originalTestName = substr($testName, 0, $datasetPosition - 1);
-            $dataSetTitle = substr($testName, $datasetPosition);
+            if ($test instanceof Cest) {
+                $originalTestName = $test->getName();
+                $dataSetTitle = substr($testName, $datasetPosition);
+            } else {
+                $originalTestName = substr($testName, 0, $datasetPosition - 1);
+                $dataSetTitle = substr($testName, $datasetPosition);
+            }
         } else {
             $originalTestName = $testName;
         }
-        if ($test instanceof Cest) {
-            $className = $test->getTestClass();
-        } else {
-            $className = get_class($test);
-        }
+
         $event = new TestCaseStartedEvent($this->uuid, $testName);
-        if (method_exists($className, $originalTestName)){
+        if (method_exists($className, $originalTestName)) {
             $annotationManager = new Annotation\AnnotationManager(Annotation\AnnotationProvider::getMethodAnnotations($className, $originalTestName));
             $annotationManager->updateTestCaseEvent($event);
             $this->updateTitle($originalTestName, $className, $event, $dataSetTitle);
