@@ -202,10 +202,12 @@ class AllureAdapter extends Extension
 
         if ($test instanceof Cest) {
             $testName = $test->getFeature();
+            $originalTestName = $test->getName();
             $datasetPosition = strpos($testName, ' | ');
             $className = $test->getTestClass();
         } else {
             $testName = $test->getName();
+            $originalTestName = $testName;
             $datasetPosition = strpos($testName, 'with data set');
             $className = get_class($test);
         }
@@ -218,8 +220,6 @@ class AllureAdapter extends Extension
                 $originalTestName = substr($testName, 0, $datasetPosition - 1);
                 $dataSetTitle = substr($testName, $datasetPosition);
             }
-        } else {
-            $originalTestName = $testName;
         }
 
         $event = new TestCaseStartedEvent($this->uuid, $testName);
