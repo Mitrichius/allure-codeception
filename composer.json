@@ -15,10 +15,16 @@
         "email": "allure@yandex-team.ru",
         "source": "https://github.com/allure-framework/allure-codeception"
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/KorDum/allure-php-commons.git"
+        }
+    ],
     "require": {
         "php": ">=5.4.0",
         "codeception/codeception": ">=2.2.0",
-        "allure-framework/allure-php-api": "~1.1.0",
+        "allure-framework/allure-php-api": "dev-master#4a83504",
         "symfony/filesystem": "~2.6",
         "symfony/finder": "~2.6"
     },
