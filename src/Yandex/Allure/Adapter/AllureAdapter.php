@@ -3,18 +3,17 @@
 namespace Yandex\Allure\Adapter;
 
 use Codeception\Configuration;
+use Codeception\Event\FailEvent;
 use Codeception\Event\StepEvent;
 use Codeception\Event\SuiteEvent;
 use Codeception\Event\TestEvent;
-use Codeception\Event\FailEvent;
 use Codeception\Events;
+use Codeception\Exception\ConfigurationException;
 use Codeception\Lib\Console\DiffFactory;
 use Codeception\Platform\Extension;
-use Codeception\Exception\ConfigurationException;
 use Codeception\Test\Cest;
-use Codeception\Test\Unit;
-use Symfony\Component\Finder\Finder;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Finder\Finder;
 use Yandex\Allure\Adapter\Annotation;
 use Yandex\Allure\Adapter\Event\StepFinishedEvent;
 use Yandex\Allure\Adapter\Event\StepStartedEvent;
@@ -57,7 +56,7 @@ class AllureAdapter extends Extension
         Events::TEST_SKIPPED => 'testSkipped',
         Events::TEST_END => 'testEnd',
         Events::STEP_BEFORE => 'stepBefore',
-        Events::STEP_AFTER => 'stepAfter'
+        Events::STEP_AFTER => 'stepAfter',
     ];
 
     /**
@@ -75,6 +74,7 @@ class AllureAdapter extends Extension
 
     /**
      * Extra annotations to ignore in addition to standard PHPUnit annotations.
+     *
      * @param array $ignoredAnnotations
      */
     public function _initialize(array $ignoredAnnotations = [])
@@ -97,8 +97,8 @@ class AllureAdapter extends Extension
     /**
      * Retrieves option or returns default value.
      *
-     * @param string $optionKey    Configuration option key.
-     * @param mixed  $defaultValue Value to return in case option isn't set.
+     * @param string $optionKey Configuration option key.
+     * @param mixed $defaultValue Value to return in case option isn't set.
      *
      * @return mixed Option value.
      * @since 0.1.0
@@ -160,7 +160,7 @@ class AllureAdapter extends Extension
      * up (if corresponding argument has been set to true).
      *
      * @param string $outputDirectory
-     * @param bool   $deletePreviousResults Whether to delete previous results
+     * @param bool $deletePreviousResults Whether to delete previous results
      *                                      or keep 'em.
      *
      * @since 0.1.0
@@ -168,7 +168,8 @@ class AllureAdapter extends Extension
     private function prepareOutputDirectory(
         $outputDirectory,
         $deletePreviousResults = false
-    ) {
+    )
+    {
         $filesystem = new Filesystem;
         $filesystem->mkdir($outputDirectory, 0775);
         if ($deletePreviousResults) {
@@ -183,7 +184,7 @@ class AllureAdapter extends Extension
         $suite = $suiteEvent->getSuite();
         $this->_rootSuiteName = $suite->getName() . '.';
     }
-    
+
     private function suiteStart($test)
     {
         if ($test instanceof Cest) {
@@ -229,12 +230,12 @@ class AllureAdapter extends Extension
             $testName = $test->getFeature();
             $originalTestName = $test->getName();
             $className = $test->getTestClass();
-            $dataSetPos = mb_strrpos($testName, ' | ');
 
-            if ($dataSetPos !== false) {
-                $dataSetTitle = mb_substr($testName, $dataSetPos);
-                $dataSetEndPos = mb_strpos($dataSetTitle, '",');
-                $dataSetTitle = mb_substr($dataSetTitle, 0, $dataSetEndPos + 1);
+            $params = $test->getMetadata()->getCurrent('example');
+            if (isset($params['dataset'])) {
+                $dataSetTitle = ' | "' . $params['dataset'] . '"';
+                unset($params['dataset']);
+                $test->getMetadata()->setCurrent($params);
             }
         } else {
             $testName = $test->getName();
@@ -331,13 +332,12 @@ class AllureAdapter extends Extension
         $this->getLifecycle()->fire(new StepFinishedEvent());
     }
 
-
     /**
      * @return Allure
      */
     public function getLifecycle()
     {
-        if (!isset($this->_lifecycle)){
+        if (!isset($this->_lifecycle)) {
             $this->_lifecycle = Allure::lifecycle();
         }
         return $this->_lifecycle;
@@ -365,7 +365,6 @@ class AllureAdapter extends Extension
                 $title = $annotation->value;
                 break;
             }
-
         }
         if (!$title) {
             return;
