@@ -3,17 +3,17 @@
 namespace Yandex\Allure\Adapter;
 
 use Codeception\Configuration;
+use Codeception\Event\FailEvent;
 use Codeception\Event\StepEvent;
 use Codeception\Event\SuiteEvent;
 use Codeception\Event\TestEvent;
-use Codeception\Event\FailEvent;
 use Codeception\Events;
+use Codeception\Exception\ConfigurationException;
 use Codeception\Lib\Console\DiffFactory;
 use Codeception\Platform\Extension;
-use Codeception\Exception\ConfigurationException;
 use Codeception\Test\Cest;
-use Symfony\Component\Finder\Finder;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Finder\Finder;
 use Yandex\Allure\Adapter\Annotation;
 use Yandex\Allure\Adapter\Event\StepFinishedEvent;
 use Yandex\Allure\Adapter\Event\StepStartedEvent;
@@ -36,13 +36,15 @@ const DEFAULT_REPORT_DIRECTORY = 'allure-report';
 
 class AllureAdapter extends Extension
 {
-    //NOTE: here we implicitly assume that PHP runs in single-threaded mode
-    private $uuid;
+    private $_rootSuiteName;
+    private $_suiteName;
+    private $_testClassName;
+    private $_uuid;
 
     /**
      * @var Allure
      */
-    private $lifecycle;
+    private $_lifecycle;
 
     static $events = [
         Events::SUITE_BEFORE => 'suiteBefore',
@@ -54,7 +56,7 @@ class AllureAdapter extends Extension
         Events::TEST_SKIPPED => 'testSkipped',
         Events::TEST_END => 'testEnd',
         Events::STEP_BEFORE => 'stepBefore',
-        Events::STEP_AFTER => 'stepAfter'
+        Events::STEP_AFTER => 'stepAfter',
     ];
 
     /**
@@ -72,6 +74,7 @@ class AllureAdapter extends Extension
 
     /**
      * Extra annotations to ignore in addition to standard PHPUnit annotations.
+     *
      * @param array $ignoredAnnotations
      */
     public function _initialize(array $ignoredAnnotations = [])
@@ -94,8 +97,8 @@ class AllureAdapter extends Extension
     /**
      * Retrieves option or returns default value.
      *
-     * @param string $optionKey    Configuration option key.
-     * @param mixed  $defaultValue Value to return in case option isn't set.
+     * @param string $optionKey Configuration option key.
+     * @param mixed $defaultValue Value to return in case option isn't set.
      *
      * @return mixed Option value.
      * @since 0.1.0
@@ -157,7 +160,7 @@ class AllureAdapter extends Extension
      * up (if corresponding argument has been set to true).
      *
      * @param string $outputDirectory
-     * @param bool   $deletePreviousResults Whether to delete previous results
+     * @param bool $deletePreviousResults Whether to delete previous results
      *                                      or keep 'em.
      *
      * @since 0.1.0
@@ -165,7 +168,8 @@ class AllureAdapter extends Extension
     private function prepareOutputDirectory(
         $outputDirectory,
         $deletePreviousResults = false
-    ) {
+    )
+    {
         $filesystem = new Filesystem;
         $filesystem->mkdir($outputDirectory, 0775);
         if ($deletePreviousResults) {
@@ -178,43 +182,78 @@ class AllureAdapter extends Extension
     public function suiteBefore(SuiteEvent $suiteEvent)
     {
         $suite = $suiteEvent->getSuite();
-        $suiteName = $suite->getName();
-        $event = new TestSuiteStartedEvent($suiteName);
-        if (class_exists($suiteName, false)) {
+        $this->_rootSuiteName = $suite->getName() . '.';
+    }
+
+    private function suiteStart($test)
+    {
+        if ($test instanceof Cest) {
+            $this->_testClassName = get_class($test->getTestClass());
+        } else {
+            $this->_testClassName = get_class($test);
+        }
+
+        $suiteName = $this->_rootSuiteName . $this->_testClassName;
+        if ($suiteName === $this->_suiteName) {
+            // already started suite
+            return;
+        } elseif (!empty($this->_uuid)) {
+            // suite ended
+            $this->suiteAfter();
+        }
+
+        $this->_suiteName = $suiteName;
+        $event = new TestSuiteStartedEvent($this->_suiteName);
+        if (class_exists($this->_testClassName, false)) {
             $annotationManager = new Annotation\AnnotationManager(
-                Annotation\AnnotationProvider::getClassAnnotations($suiteName)
+                Annotation\AnnotationProvider::getClassAnnotations($this->_testClassName)
             );
             $annotationManager->updateTestSuiteEvent($event);
         }
-        $this->uuid = $event->getUuid();
+
+        $this->_uuid = $event->getUuid();
         $this->getLifecycle()->fire($event);
     }
 
     public function suiteAfter()
     {
-        $this->getLifecycle()->fire(new TestSuiteFinishedEvent($this->uuid));
+        $this->getLifecycle()->fire(new TestSuiteFinishedEvent($this->_uuid));
     }
 
     public function testStart(TestEvent $testEvent)
     {
         $test = $testEvent->getTest();
-        $testName = $test->getName();
+        $this->suiteStart($test);
         $dataSetTitle = null;
-        $datasetPosition = strpos($testName, 'with data set');
-        if ($datasetPosition !== false) {
-            $originalTestName = substr($testName, 0, $datasetPosition - 1);
-            $dataSetTitle = substr($testName, $datasetPosition);
-        } else {
-            $originalTestName = $testName;
-        }
+
         if ($test instanceof Cest) {
+            $testName = $test->getFeature();
+            $originalTestName = $test->getName();
             $className = $test->getTestClass();
+
+            $params = $test->getMetadata()->getCurrent('example');
+            if (isset($params['dataset'])) {
+                $dataSetTitle = ' | "' . $params['dataset'] . '"';
+                unset($params['dataset']);
+                $test->getMetadata()->setCurrent($params);
+            }
         } else {
+            $testName = $test->getName();
+            $originalTestName = $testName;
+            $dataSetPos = mb_strpos($testName, 'with data set');
             $className = get_class($test);
+
+            if ($dataSetPos !== false) {
+                $originalTestName = mb_substr($testName, 0, $dataSetPos - 1);
+                $dataSetTitle = '|' . mb_substr($testName, $dataSetPos + 13);
+            }
         }
-        $event = new TestCaseStartedEvent($this->uuid, $testName);
-        if (method_exists($className, $originalTestName)){
-            $annotationManager = new Annotation\AnnotationManager(Annotation\AnnotationProvider::getMethodAnnotations($className, $originalTestName));
+
+        $event = new TestCaseStartedEvent($this->_uuid, $testName);
+        if (method_exists($className, $originalTestName)) {
+            $annotationManager = new Annotation\AnnotationManager(
+                Annotation\AnnotationProvider::getMethodAnnotations($className, $originalTestName)
+            );
             $annotationManager->updateTestCaseEvent($event);
             $this->updateTitle($originalTestName, $className, $event, $dataSetTitle);
         }
@@ -293,21 +332,20 @@ class AllureAdapter extends Extension
         $this->getLifecycle()->fire(new StepFinishedEvent());
     }
 
-
     /**
      * @return Allure
      */
     public function getLifecycle()
     {
-        if (!isset($this->lifecycle)){
-            $this->lifecycle = Allure::lifecycle();
+        if (!isset($this->_lifecycle)) {
+            $this->_lifecycle = Allure::lifecycle();
         }
-        return $this->lifecycle;
+        return $this->_lifecycle;
     }
 
     public function setLifecycle(Allure $lifecycle)
     {
-        $this->lifecycle = $lifecycle;
+        $this->_lifecycle = $lifecycle;
     }
 
     /**
@@ -327,7 +365,6 @@ class AllureAdapter extends Extension
                 $title = $annotation->value;
                 break;
             }
-
         }
         if (!$title) {
             return;
