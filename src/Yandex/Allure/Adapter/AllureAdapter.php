@@ -40,6 +40,7 @@ class AllureAdapter extends Extension
     private $_suiteName;
     private $_testClassName;
     private $_uuid;
+    private $_issues = [];
 
     /**
      * @var Allure
@@ -222,6 +223,7 @@ class AllureAdapter extends Extension
 
     public function testStart(TestEvent $testEvent)
     {
+        $this->_issues = [];
         $test = $testEvent->getTest();
         $this->suiteStart($test);
         $dataSetTitle = null;
@@ -273,6 +275,7 @@ class AllureAdapter extends Extension
                 ? $e->getClassname()
                 : get_class($e);
         }
+        $message = $this->updateMessage($message);
         $this->getLifecycle()->fire($event->withException($e)->withMessage($message));
     }
 
@@ -284,6 +287,7 @@ class AllureAdapter extends Extension
         $event = new TestCaseFailedEvent();
         $e = $failEvent->getFail();
         $message = $this->getFullFailMessage($e);
+        $message = $this->updateMessage($message);
         $this->getLifecycle()->fire($event->withException($e)->withMessage($message));
     }
 
@@ -295,6 +299,7 @@ class AllureAdapter extends Extension
         $event = new TestCasePendingEvent();
         $e = $failEvent->getFail();
         $message = $e->getMessage();
+        $message = $this->updateMessage($message);
         $this->getLifecycle()->fire($event->withException($e)->withMessage($message));
     }
 
@@ -306,6 +311,7 @@ class AllureAdapter extends Extension
         $event = new TestCaseCanceledEvent();
         $e = $failEvent->getFail();
         $message = $e->getMessage();
+        $message = $this->updateMessage($message);
         $this->getLifecycle()->fire($event->withException($e)->withMessage($message));
     }
 
@@ -351,13 +357,32 @@ class AllureAdapter extends Extension
     /**
      * @param $testName
      * @param $className
+     * @return array
+     */
+    private function getIssues($testName, $className)
+    {
+        $annotations = Annotation\AnnotationProvider::getMethodAnnotations($className, $testName);
+        $issues = null;
+        foreach ($annotations as $annotation) {
+            if ($annotation instanceof Annotation\Issues) {
+                $issueKeys = $annotation->getIssueKeys();
+                foreach ($issueKeys as $issue) {
+                    $issues[] = $issue;
+                }
+            }
+        }
+        return $issues;
+    }
+
+    /**
+     * @param $testName
+     * @param $className
      * @param TestCaseStartedEvent $event
      * @param $dataSetTitle
      */
     private function updateTitle($testName, $className, TestCaseStartedEvent $event, $dataSetTitle)
     {
         $annotations = Annotation\AnnotationProvider::getMethodAnnotations($className, $testName);
-        $issues = null;
         $title = null;
         $titleUpdated = null;
         foreach ($annotations as $annotation) {
@@ -370,24 +395,29 @@ class AllureAdapter extends Extension
             return;
         }
         if ($this->tryGetOption(ISSUES_IN_TEST_NAME, false)) {
-            foreach ($annotations as $annotation) {
-                if ($annotation instanceof Annotation\Issues) {
-                    $issueKeys = $annotation->getIssueKeys();
-                    foreach ($issueKeys as $issue) {
-                        $issues[] = $issue;
-                    }
-                }
-            }
+            $this->_issues = $this->getIssues($testName, $className);
         }
 
         $titleUpdated = $title;
-        if ($issues) {
-            $titleUpdated = implode(' ', $issues) . ' ' . $titleUpdated;
+        if ($this->_issues) {
+            $titleUpdated = implode(' ', $this->_issues) . ' ' . $titleUpdated;
         }
         if ($dataSetTitle) {
             $titleUpdated .= ' ' . $dataSetTitle;
         }
         $event->setTitle($titleUpdated);
+    }
+
+    /**
+     * @param $message
+     * @return string
+     */
+    private function updateMessage($message)
+    {
+        if ($this->_issues && $this->tryGetOption(ISSUES_IN_TEST_NAME, false)) {
+            return implode(' ', $this->_issues) . PHP_EOL . $message;
+        }
+        return $message;
     }
 
     public function getFullFailMessage(\Exception $e)
