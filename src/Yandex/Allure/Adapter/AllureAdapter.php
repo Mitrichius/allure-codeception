@@ -415,7 +415,7 @@ class AllureAdapter extends Extension
     private function updateMessage($message)
     {
         if ($this->_issues && $this->tryGetOption(ISSUES_IN_TEST_NAME, false)) {
-            return implode(' ', $this->_issues) . PHP_EOL . $message;
+            return "Issue: " . implode(' ', $this->_issues) . PHP_EOL . $message;
         }
         return $message;
     }
