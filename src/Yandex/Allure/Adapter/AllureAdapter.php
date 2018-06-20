@@ -36,11 +36,14 @@ const DEFAULT_REPORT_DIRECTORY = 'allure-report';
 
 class AllureAdapter extends Extension
 {
+    const UNSTABLE = 'Unstable';
+
     private $_rootSuiteName;
     private $_suiteName;
     private $_testClassName;
     private $_uuid;
     private $_issues = [];
+    private $_unstable;
 
     /**
      * @var Allure
@@ -224,6 +227,7 @@ class AllureAdapter extends Extension
     public function testStart(TestEvent $testEvent)
     {
         $this->_issues = [];
+        $this->_unstable = false;
         $test = $testEvent->getTest();
         $this->suiteStart($test);
         $dataSetTitle = null;
@@ -258,6 +262,7 @@ class AllureAdapter extends Extension
             );
             $annotationManager->updateTestCaseEvent($event);
             $this->updateTitle($originalTestName, $className, $event, $dataSetTitle);
+            $this->_unstable = $this->isUnstable($event->getTitle());
         }
         $this->getLifecycle()->fire($event);
     }
@@ -414,6 +419,9 @@ class AllureAdapter extends Extension
      */
     private function updateMessage($message)
     {
+        if ($this->_unstable) {
+            $message = '(' . self::UNSTABLE . ')' . PHP_EOL . $message;
+        }
         if ($this->_issues && $this->tryGetOption(ISSUES_IN_TEST_NAME, false)) {
             return "Issue: " . implode(' ', $this->_issues) . PHP_EOL . $message;
         }
@@ -434,5 +442,10 @@ class AllureAdapter extends Extension
             }
         }
         return $message;
+    }
+
+    public function isUnstable($testName)
+    {
+        return mb_strpos($testName,  self::UNSTABLE) !== false;
     }
 }
