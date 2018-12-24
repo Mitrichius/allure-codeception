@@ -333,8 +333,6 @@ class AllureAdapter extends Extension
         $stepArgs = $stepEvent->getStep()->getHumanizedArguments($argumentsLength);
         $stepName = $stepAction . ' ' . $stepArgs;
 
-        //Workaround for https://github.com/allure-framework/allure-core/issues/442
-        $stepName = str_replace('.', '•', $stepName);
         $this->getLifecycle()->fire(new StepStartedEvent($stepName));
     }
 
